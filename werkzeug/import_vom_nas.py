@@ -14,6 +14,7 @@ import urllib.request
 
 NAS = "http://192.168.1.66:8098"
 PASSWORT = "/root/.config/tom-moebelplan/passwort"
+UA = {"User-Agent": "claude-nas-tom-moebelplan/1"}  # ohne eigene Kennung sperrt Cloudflare mit Fehler 1010
 
 
 class KeineUmleitung(urllib.request.HTTPRedirectHandler):
@@ -44,7 +45,7 @@ def main():
     passwort = open(PASSWORT, encoding="utf-8").read().strip()
     oeffner = urllib.request.build_opener(KeineUmleitung)
     try:
-        oeffner.open(urllib.request.Request(ziel + "/anmelden", urllib.parse.urlencode({"passwort": passwort}).encode()),
+        oeffner.open(urllib.request.Request(ziel + "/anmelden", urllib.parse.urlencode({"passwort": passwort}).encode(), headers=UA),
                      timeout=30)
         sys.exit("Anmeldung ohne Umleitung, unerwartet")
     except urllib.error.HTTPError as e:
@@ -52,7 +53,7 @@ def main():
             sys.exit(f"Anmeldung fehlgeschlagen: {e.code}")
         cookie = e.headers.get("Set-Cookie", "").split(";")[0]
     req = urllib.request.Request(ziel + "/api/import", json.dumps(export).encode(), method="POST",
-                                 headers={"Content-Type": "application/json", "Cookie": cookie})
+                                 headers={**UA, "Content-Type": "application/json", "Cookie": cookie})
     with urllib.request.urlopen(req, timeout=60) as r:
         antwort = json.load(r)
     for v in antwort["varianten"]:

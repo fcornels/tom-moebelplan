@@ -79,7 +79,7 @@ async function anmelden(request, env, url) {
     .bind(ip, jetztSek - FENSTER_SEK).first();
   if (n >= MAX_FEHL) return seite(429, "Zu viele Versuche. Bitte in 15 Minuten noch einmal.", ziel(url));
   const form = await request.formData().catch(() => null);
-  const eingabe = form ? String(form.get("passwort") || "") : "";
+  const eingabe = form ? String(form.get("passwort") || "").trim() : "";
   if (!gleich(eingabe, env.SEITEN_PASSWORT)) {
     await env.DB.batch([
       env.DB.prepare("INSERT INTO fehlversuche (ip, zeit) VALUES (?, ?)").bind(ip, jetztSek),
@@ -98,7 +98,9 @@ async function anmelden(request, env, url) {
   });
 }
 
-export async function onRequest({ request, env, next }) {
+export async function onRequest({ request, env: roh, next }) {
+  // Leerzeichen am Rand des Secrets zählen nicht (beim Einfügen im Dashboard leicht mitkopiert)
+  const env = { ...roh, SEITEN_PASSWORT: String(roh.SEITEN_PASSWORT || "").trim() };
   const url = new URL(request.url);
   if (url.pathname === "/healthz") return new Response("ok\n", { headers: { "Content-Type": "text/plain; charset=utf-8" } });
   if (!env.SEITEN_PASSWORT)
