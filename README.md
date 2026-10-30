@@ -4,8 +4,26 @@ Möblierungsplan für Toms Wohnung Rimbertweg 11 b (Einzug 01.01.2027): Grundris
 Anschluss-Ebene, Plan-Varianten. Online-Fassung der NAS-App „Möblierungsplan Tom“ (Fassung 1.3.0, Port 8098 im
 Heimnetz), seit 30.10.2026 auf Cloudflare Pages mit Passwortschutz (Entscheidung Frank 30.10.2026).
 
-Fassung 2.0.0 (30.10.2026). Die Seite in `public/` ist unverändert die der NAS-App 1.3.0; neu sind nur
-Speicherung (D1 statt Dateien) und Passwortschutz.
+Fassung 2.1.0 (30.10.2026): Räume nachmessen. Fassung 2.0.0 (30.10.2026): Seite der NAS-App 1.3.0 mit
+Speicherung in D1 statt Dateien und Passwortschutz.
+
+## Räume nachmessen (Fassung 2.1.0, 30.10.2026)
+
+Tom misst die Räume nach, weil der Grundriss der Genossenschaft ungenau sein kann. In der Seitenleiste „Räume
+nachmessen“: Raum wählen, lichtes Maß in cm eintragen, wählen, welche Wand sich verschiebt (rechts oder links,
+unten oder oben), Übernehmen. Danach baut sich die Seite neu auf.
+
+- Jede Wand ist eine Wandlinie mit beiden Seiten (GX, GY in public/index.html); sie wandert als Ganzes, die
+  Wandstärke bleibt. Gespeichert wird nur der Versatz je Wandlinie (`/api/wohnung`, Tabelle `wohnung`, die letzten
+  20 Stände in `wohnung_verlauf`), für alle Varianten gleich.
+- Mit der Wand wandern Nachbarräume an derselben Wandlinie, Türen, Fenster, Einbauten, Beschriftungen,
+  3D-Einbauten und Blickpunkte. Möbel und Anschlüsse bleiben stehen; was nun in eine Wand ragt, zeigt die
+  Konfliktprüfung rot.
+- Fluchtende Wände bleiben fluchtend: Die Westwand ist für Zimmer 2, Flur und Küche eine Linie.
+- „Alle wie Zeichnung“ setzt alle Wände zurück.
+- Eingebaut mit `python3 -I bau/waende.py public/index.html` auf der Seite von 2.0.0 (jede Ersetzung genau einmal).
+- Geprüft am 30.10.2026 lokal: ohne Messung pixelgleich mit 2.0.0, Zimmer 2 auf 345 cm mit rechter Wand ergibt
+  Zimmer 1 382 cm, Beschriftung und Fläche neu, 3D ohne Fehler, Zurücksetzen wieder pixelgleich.
 
 ## Aufbau
 

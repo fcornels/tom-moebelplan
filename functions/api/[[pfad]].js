@@ -1,5 +1,5 @@
 // Schnittstelle der Online-Fassung, gleich wie server.py der NAS-App (Fassung 1.3.0), Speicher D1 statt Dateien.
-// Fassung 2.0.0, 30.10.2026.
+// Fassung 2.1.0, 30.10.2026 (Wände); 2.0.0 vom selben Tag.
 //
 //   GET  /api/varianten                        -> {"varianten": [{"id", "name", "version", "geaendert", "anzahl"}]}
 //   POST /api/varianten                        <- {"name", "von": id?}  neue Variante, mit „von“ als Kopie
@@ -10,6 +10,9 @@
 //   GET  /api/verlauf?v=                       -> {"staende": [...]} (neueste zuerst)
 //   POST /api/verlauf/<nr>/wiederherstellen?v= <- {"version"}
 //   POST /api/import                           <- Export der NAS-App, nur solange noch kein Plan gespeichert ist
+//   GET  /api/wohnung                          -> {"version", "geaendert", "daten": {"x", "y", "gemessen"} | null}
+//   PUT  /api/wohnung                          <- {"version", "daten"} -> 200 oder 409 mit Stand (seit Fassung 2.1.0:
+//                                                 nachgemessene Wände, Versatz je Wandlinie in cm, für alle Varianten)
 //
 // Verlauf: die letzten 20 Stände je Variante. Gesichert wird der Stand vor einer Änderung, aber nur einmal je
 // Bearbeitungsfolge (dasselbe Gerät innerhalb von 2 Minuten). Zurücksetzen und Wiederherstellen sichern immer.
@@ -152,6 +155,56 @@ async function anlegen(DB, name, von) {
   return vid;
 }
 
+// ---------------------------------------------------------------- Wände (seit Fassung 2.1.0)
+
+const SCHLUESSEL = /^[a-z0-9_]{1,30}$/;
+
+function pruefeWohnung(d) {
+  if (!d || typeof d !== "object" || Array.isArray(d)) throw new Fehler(400, "daten fehlt");
+  const aus = { x: {}, y: {}, gemessen: {} };
+  for (const achse of ["x", "y"]) {
+    const roh = d[achse] || {};
+    if (typeof roh !== "object" || Array.isArray(roh) || Object.keys(roh).length > 20) throw new Fehler(400, `daten.${achse} fehlerhaft`);
+    for (const [k, v] of Object.entries(roh)) {
+      if (!SCHLUESSEL.test(k)) throw new Fehler(400, "Wandlinie mit unbekanntem Namen");
+      const z = zahl(v, -200, 200);
+      if (z !== 0) aus[achse][k] = z;
+    }
+  }
+  const g = d.gemessen || {};
+  if (typeof g !== "object" || Array.isArray(g) || Object.keys(g).length > 20) throw new Fehler(400, "daten.gemessen fehlerhaft");
+  for (const [k, v] of Object.entries(g)) {
+    if (!SCHLUESSEL.test(k) || !v || typeof v !== "object") throw new Fehler(400, "Messung fehlerhaft");
+    const m = { zeit: String(v.zeit || "").slice(0, 40) };
+    for (const f of ["breite", "tiefe"]) if (v[f] !== undefined && v[f] !== null) m[f] = zahl(v[f], 10, 2000);
+    aus.gemessen[k] = m;
+  }
+  return aus;
+}
+
+async function wohnung(DB) {
+  const r = await DB.prepare("SELECT version, geaendert, daten FROM wohnung WHERE id = 1").first();
+  return r ? { version: r.version, geaendert: r.geaendert, daten: JSON.parse(r.daten) } : { version: 0, geaendert: null, daten: null };
+}
+
+async function wohnungSpeichern(DB, d) {
+  if (!Number.isInteger(d.version)) throw new Fehler(400, "version fehlt");
+  const daten = pruefeWohnung(d.daten);
+  const st = await wohnung(DB);
+  if (d.version !== st.version) return [409, { fehler: "Die Wandmaße wurden inzwischen auf einem anderen Gerät geändert.", ...st }];
+  const neu = { version: st.version + 1, geaendert: jetzt(), daten };
+  const anw = [st.version === 0
+    ? DB.prepare("INSERT OR IGNORE INTO wohnung (id, version, geaendert, daten) VALUES (1, ?, ?, ?)").bind(neu.version, neu.geaendert, JSON.stringify(daten))
+    : DB.prepare("UPDATE wohnung SET version = ?, geaendert = ?, daten = ? WHERE id = 1 AND version = ?")
+        .bind(neu.version, neu.geaendert, JSON.stringify(daten), st.version)];
+  if (st.daten) anw.push(
+    DB.prepare("INSERT INTO wohnung_verlauf (zeit, version, daten) VALUES (?, ?, ?)").bind(st.geaendert, st.version, JSON.stringify(st.daten)),
+    DB.prepare("DELETE FROM wohnung_verlauf WHERE nr <= (SELECT MAX(nr) FROM wohnung_verlauf) - ?").bind(VERLAUF_MAX));
+  const erg = await DB.batch(anw);
+  if (!erg[0].meta.changes) return [409, { fehler: "Die Wandmaße wurden inzwischen auf einem anderen Gerät geändert.", ...(await wohnung(DB)) }];
+  return [200, neu];
+}
+
 // Einmaliger Import aus der NAS-App: {"naechste": n, "varianten": [{"id", "name", "angelegt", "version", "geaendert", "plan"}]}
 async function importieren(DB, d) {
   const belegt = await DB.prepare("SELECT COUNT(*) AS n FROM plaene").first();
@@ -186,6 +239,12 @@ async function behandeln(request, DB) {
   const pfad = url.pathname;
   const v = url.searchParams.get("v") || "";
   const methode = request.method;
+
+  if (pfad === "/api/wohnung") {
+    if (methode === "GET" || methode === "HEAD") return json(200, await wohnung(DB));
+    if (methode === "PUT") { const [status, daten] = await wohnungSpeichern(DB, await body(request)); return json(status, daten); }
+    return json(405, { fehler: "Methode nicht erlaubt" });
+  }
 
   if (methode === "GET" || methode === "HEAD") {
     if (pfad === "/api/varianten") return json(200, await variantenInfo(DB));

@@ -1,5 +1,5 @@
 // Gemeinsame Teile der Online-Fassung (Cloudflare Pages Functions, D1-Bindung DB).
-// Fassung 2.0.0, 30.10.2026: Online-Fassung des Möblierungsplans (Entscheidung Frank 30.10.2026).
+// Fassung 2.1.0, 30.10.2026: Tabellen für nachgemessene Wände. Fassung 2.0.0: Online-Fassung (D-20261030-N1).
 
 // Tabellen. Werden beim ersten Aufruf je Worker angelegt, falls sie fehlen.
 const SCHEMA = [
@@ -11,6 +11,9 @@ const SCHEMA = [
      grund TEXT, plan TEXT NOT NULL, PRIMARY KEY (vid, nr))`,
   `CREATE TABLE IF NOT EXISTS folge (vid TEXT PRIMARY KEY, client TEXT, zeit REAL NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS fehlversuche (ip TEXT NOT NULL, zeit INTEGER NOT NULL)`,
+  // seit Fassung 2.1.0: nachgemessene Wände, gelten für alle Varianten
+  `CREATE TABLE IF NOT EXISTS wohnung (id INTEGER PRIMARY KEY CHECK (id = 1), version INTEGER NOT NULL, geaendert TEXT, daten TEXT NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS wohnung_verlauf (nr INTEGER PRIMARY KEY AUTOINCREMENT, zeit TEXT, version INTEGER NOT NULL, daten TEXT NOT NULL)`,
 ];
 
 let bereit = false;
