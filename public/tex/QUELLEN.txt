@@ -1,0 +1,12 @@
+Texturen der Web-App Möblierungsplan Tom (Fassung 1.3.0, 18.10.2026)
+
+Quelle: Poly Haven, https://polyhaven.com
+Lizenz: CC0 1.0 (frei nutzbar ohne Namensnennung), https://polyhaven.com/license, gelesen am 18.10.2026
+Geladen über https://api.polyhaven.com/files/<name>, Auflösung 1k (JPG), danach mit ImageMagick verkleinert bzw. angepasst.
+
+boden_holz.jpg, boden_holz_nor.jpg, boden_holz_rau.jpg   laminate_floor_02 (Farbe, Normal GL, Rauheit; Normal und Rauheit 512 px)
+fliese.jpg, fliese_nor.jpg, fliese_rau.jpg               marble_01 (Farbe aufgehellt und entsättigt: -modulate 118,35,100)
+terrasse.jpg, terrasse_nor.jpg                           concrete_tiles_02 (Farbe -modulate 112,60,100)
+eiche.jpg, eiche_rau.jpg                                 oak_veneer_01 (Farbe -modulate 104,78,100)
+stoff.jpg, stoff_nor.jpg                                 rough_linen (Farbe in Graustufen, die Farbe setzt das Material)
+putz_nor.jpg                                             white_plaster_02 (nur Normal GL)
