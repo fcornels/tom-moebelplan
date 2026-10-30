@@ -102,7 +102,9 @@ export async function onRequest({ request, env: roh, next }) {
   // Leerzeichen am Rand des Secrets zählen nicht (beim Einfügen im Dashboard leicht mitkopiert)
   const env = { ...roh, SEITEN_PASSWORT: String(roh.SEITEN_PASSWORT || "").trim() };
   const url = new URL(request.url);
-  if (url.pathname === "/healthz") return new Response("ok\n", { headers: { "Content-Type": "text/plain; charset=utf-8" } });
+  // Diagnose ohne Anmeldung: welcher Commit läuft, ob Passwort und Datenbank im Projekt hinterlegt sind (nie der Wert)
+  if (url.pathname === "/healthz") return new Response(`ok ${String(roh.CF_PAGES_COMMIT_SHA || "lokal").slice(0, 7)} ${roh.CF_PAGES_BRANCH || ""} ` +
+    `passwort:${env.SEITEN_PASSWORT ? "ja" : "nein"} db:${roh.DB ? "ja" : "nein"}\n`, { headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
   if (!env.SEITEN_PASSWORT)
     return new Response("Gesperrt: Im Cloudflare-Projekt fehlt das Secret SEITEN_PASSWORT.\n",
       { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8" } });
